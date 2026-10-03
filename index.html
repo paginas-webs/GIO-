@@ -219,7 +219,7 @@ th,td{padding:6px 4px;text-align:left;border-bottom:1px solid var(--line)}
   <div class="items" id="items"></div>
   <div class="ship">
     <label for="cp">Calcular envío</label>
-    <div class="in"><input type="text" id="cp" inputmode="numeric" maxlength="4" placeholder="Código postal (ej. 1900)"><button class="btn" id="quote" style="padding:12px 20px">Cotizar</button></div>
+    <div class="in"><input type="text" id="cp" maxlength="8" autocomplete="postal-code" placeholder="Código postal (ej. 1900)"><button class="btn" id="quote" style="padding:12px 20px">Cotizar</button></div>
     <div class="opts" id="opts"></div>
     <p class="note" id="shipnote" role="status"></p>
   </div>
@@ -358,10 +358,11 @@ async function getRates(cp,items){
   ];
 }
 $("#quote").addEventListener("click",async()=>{
-  const cp=$("#cp").value.trim(), note=$("#shipnote");
-  if(!/^\d{4}$/.test(cp)){note.textContent="Ingresá un código postal de 4 dígitos.";return}
+  const raw=$("#cp").value.trim().toUpperCase().replace(/\s/g,""), m=raw.match(/^[A-Z]?(\d{4})[A-Z]{0,3}$/), note=$("#shipnote");
+  if(!m){note.textContent="Código postal inválido. Ingresá 4 números (ej. 1900) o el formato largo (ej. B1900ABC).";return}
+  const cp=m[1];
   if(!cart.length){note.textContent="Agregá una prenda para cotizar el envío.";return}
-  note.textContent="Calculando envío…";$("#opts").innerHTML="";
+  note.textContent="Calculando envío…";$("#opts").innerHTML="";ship=null;renderCart();
   try{
     const rates=await getRates(cp,cart);
     note.textContent=CONFIG.shippingEndpoint?"":"Valores de prueba. Se conectarán a la API real del correo.";
@@ -369,6 +370,8 @@ $("#quote").addEventListener("click",async()=>{
     $("#opts").onchange=e=>{ship={...rates[+e.target.value],cp};renderCart()};
   }catch(e){note.textContent="No pudimos cotizar el envío. Revisá el código postal e intentá de nuevo."}
 });
+$("#cp").addEventListener("input",()=>{if(ship||$("#opts").innerHTML){ship=null;$("#opts").innerHTML="";$("#shipnote").textContent="Cambiaste el código postal. Volvé a cotizar.";renderCart()}});
+$("#cp").addEventListener("keydown",e=>{if(e.key==="Enter")$("#quote").click()});
 $("#checkout").addEventListener("click",()=>{
   const lines=cart.map(i=>{const p=PRODUCTS.find(x=>x.id===i.id);return `• ${p.n} (talle ${i.s}) x${i.q} — ${money(p.p*i.q)}`});
   const free=subtotal()>=CONFIG.freeShippingFrom;
